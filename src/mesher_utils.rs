@@ -86,9 +86,13 @@ pub fn periodic_thomas(a: &[f64], b: &[f64], c: &[f64], d: &[f64]) -> Vec<f64> {
     bb[n - 1] = b[n - 1] - a[0] * c[n - 1] / gamma;
 
     // Monta o vetor u (apenas as pontas possuem valores)
+    //let mut u = vec![0.0; n];
+    //u[0] = gamma;
+   // u[n - 1] = a[0]; 
+   // Monta o vetor u (apenas as pontas possuem valores)
     let mut u = vec![0.0; n];
     u[0] = gamma;
-    u[n - 1] = a[0]; 
+    u[n - 1] = c[n - 1]; // CORREÇÃO: Era a[0]
 
     // O vetor v é modelado implicitamente para economizar alocação:
     // v = [1.0, 0.0, ..., 0.0, c[n-1]/gamma]
@@ -101,7 +105,9 @@ pub fn periodic_thomas(a: &[f64], b: &[f64], c: &[f64], d: &[f64]) -> Vec<f64> {
     let q = thomas_algorithm(a, &bb, c, &u);
 
     // 3. Reconstrução final da solução combinando os resultados
-    let v_n_minus_1 = c[n - 1] / gamma;
+    //let v_n_minus_1 = c[n - 1] / gamma;
+    // 3. Reconstrução final da solução combinando os resultados
+    let v_n_minus_1 = a[0] / gamma; // CORREÇÃO: Era c[n - 1] / gamma
     
     // Produtos escalares (v dot y) e (v dot q)
     let v_dot_y = y[0] + v_n_minus_1 * y[n - 1];
@@ -116,3 +122,41 @@ pub fn periodic_thomas(a: &[f64], b: &[f64], c: &[f64], d: &[f64]) -> Vec<f64> {
 
     x
 }    
+
+
+/// Exporta a malha 2D para o formato VTK Legacy (Structured Grid).
+/// Isso permite a visualização nativa no ParaView.
+pub fn export_vtk_structured_grid(grid: &Array2<Point>, filename: &str) -> io::Result<()> {
+    // Extrai as dimensões reais da malha alocada
+    let shape = grid.shape();
+    let ni = shape[0];
+    let nj = shape[1];
+    let num_points = ni * nj;
+
+    // Cria o arquivo (sobrescreve se já existir)
+    let mut file = File::create(filename)?;
+
+    // --- 1. Cabeçalho do VTK Legacy ---
+    writeln!(file, "# vtk DataFile Version 3.0")?;
+    writeln!(file, "Malha Parabolica 2D O-Mesh")?;
+    writeln!(file, "ASCII")?;
+    writeln!(file, "DATASET STRUCTURED_GRID")?;
+    
+    // O VTK sempre espera 3 dimensões (i, j, k). Para 2D, k=1.
+    writeln!(file, "DIMENSIONS {} {} 1", ni, nj)?;
+    writeln!(file, "POINTS {} float", num_points)?;
+
+    // --- 2. Escrita das Coordenadas ---
+    // A ordem EXIGE que 'i' seja o loop mais interno.
+    for j in 0..nj {
+        for i in 0..ni {
+            let pt = &grid[[i, j]];
+            // Escreve X, Y e força Z = 0.0
+            writeln!(file, "{:.6} {:.6} 0.0", pt.x, pt.y)?;
+        }
+    }
+
+    println!("Malha exportada com sucesso para: {}", filename);
+
+    Ok(())
+}

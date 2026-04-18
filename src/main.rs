@@ -5,14 +5,17 @@ mod mesher_utils;
 mod geometry;
 mod config;
 mod parabolic_mesher;
+use crate::geometry::AirfoilType::Biconvex;
+use crate::geometry::AirfoilType::NACA00XX;
 
 fn main() {
     let config = config::Config {
         meshname: "biconvex_mesh".to_string(), // Mesh name for output organization
+        airfoil_type: NACA00XX,
         r_max: 6.5,                   // Circunference radius of the outter mesh boundary
-        longitudinal_points: 13,   // Number of points along the airfoil chord
-        normal_points: 10,          // Number of points in the normal direction from the airfoil surface
-        t: 0.10,                    // Airfoil thickness parameter
+        longitudinal_points: 93,   // Number of points along the airfoil chord
+        normal_points: 15,          // Number of points in the normal direction from the airfoil surface
+        t: 0.2,                    // Airfoil thickness parameter
         stretching_factor: 1.2,     // Stretching factor for geometric progression (1.0 for uniform mesh)
         q: 1.15,                     // Fator de amortecimento
         n_max: 5000,                // Maximum number of solver iterations
@@ -40,5 +43,7 @@ fn main() {
         Ok(_) => println!("Arquivo salvo com sucesso!\n"),
         Err(e) => eprintln!("Erro ao salvar o arquivo: {}", e),
     }
+
+    let _ = mesher_utils::export_vtk_structured_grid(&grid, "job_files/biconvex_mesh/parabolic_mesh.vtk");
 
 }

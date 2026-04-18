@@ -3,35 +3,108 @@ use ndarray::Array2;
 use std::f64::consts::PI;
 use crate::mesher_utils::Point;
 
+// Adicione este enum no seu arquivo config.rs ou no próprio módulo do mesher
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AirfoilType {
+    Biconvex,
+    NACA00XX, // Nomeado genericamente, pois a espessura 't' define se é 0012, 0015, etc.
+}
+
 
 pub fn insert_geoemtry(config: &config::Config, grid: &mut Array2<Point>) {
     println!("Inserting geometry...");
 
     // Insert the airfoil geometry into the grid
-    insert_airfoil_geom(config, grid);
+    // Redireciona para a função correta baseada no enum configurado
+    match config.airfoil_type {
+        AirfoilType::Biconvex => insert_biconvex_geom(config, grid),
+        AirfoilType::NACA00XX => insert_naca00xx_geom(config, grid),
+    }
 
     // Insert the outer boundary geometry into the grid
     insert_outter_boundary(config, grid);
 
 }
 
-
-fn insert_airfoil_geom(config: &config::Config, grid: &mut Array2<Point>) {
-    println!("Inserting biconvex airfoil geometry...");
+fn insert_biconvex_geom(config: &config::Config, grid: &mut Array2<Point>) {
+    println!("Generating Biconvex airfoil geometry...");
 
     let n_longitudinal = config.longitudinal_points;
     let t = config.t;
-    let r = config.stretching_factor; 
-
-    // O índice do Bordo de Ataque será exatamente a metade do vetor.
-    // IMPORTANTE: Para que a simetria seja perfeita, n_longitudinal DEVE ser ímpar (ex: 101).
     let mid = (n_longitudinal - 1) / 2;
     
-    // Quantidade de pontos únicos que descrevem do Bordo de Ataque (0.0) ao Bordo de Fuga (1.0)
+    // Chama a função auxiliar para pegar as coordenadas x
+    let x_dist = generate_x_distribution(config);
+
+    for i in 0..n_longitudinal {
+        let x = if i <= mid { x_dist[mid - i] } else { x_dist[i - mid] };
+        let x_safe = x.max(0.0);
+
+        let thickness = 2.0 * t * x_safe * (1.0 - x_safe);
+
+        let y = if i <= mid { -thickness } else { thickness };
+
+        grid[[i, 0]] = Point { x, y };
+    }
+}
+
+fn insert_naca00xx_geom(config: &config::Config, grid: &mut Array2<Point>) {
+    println!("Generating NACA 00xx (Left-Pointing: Nose at X=1, Tail at X=0)...");
+
+    let n_longitudinal = config.longitudinal_points;
+    let t = config.t;
+    let mid = (n_longitudinal - 1) / 2;
+    
+    // Vetor com a distribuição de pontos matemáticos (de 0.0 até 1.0)
+    let x_dist = generate_x_distribution(config);
+
+    for i in 0..n_longitudinal {
+        // x_math dita a posição ao longo da corda. 
+        // 1.0 é a cauda, 0.0 é o nariz.
+        let x_math = if i <= mid {
+            x_dist[mid - i] // Descendo da cauda (1.0) para o nariz (0.0)
+        } else {
+            x_dist[i - mid] // Subindo do nariz (0.0) de volta para a cauda (1.0)
+        };
+
+        let x_safe = x_math.max(0.0);
+
+        // Equação NACA 4 dígitos (com fechamento afiado em -0.1036 para o bordo de fuga)
+        let thickness = 5.0 * t * (
+            0.2969 * x_safe.sqrt() - 
+            0.1260 * x_safe - 
+            0.3516 * x_safe.powi(2) + 
+            0.2843 * x_safe.powi(3) - 
+            0.1036 * x_safe.powi(4)
+        );
+
+        // === A ÚNICA MUDANÇA PARA APONTAR PARA A ESQUERDA ===
+        // Quando x_math for 1.0 (cauda), X físico será 0.0
+        // Quando x_math for 0.0 (nariz), X físico será 1.0
+        let x_coord = x_safe;
+
+        // Mantém a varredura rigorosamente como você pediu:
+        // i <= mid: Vai por baixo (Intradorso)
+        // i > mid: Volta por cima (Extradorso)
+        let y_coord = if i <= mid {
+            -thickness 
+        } else {
+            thickness  
+        };
+
+        grid[[i, 0]] = Point { x: x_coord, y: y_coord };
+    }
+}
+
+/// Gera a distribuição de pontos em X (0.0 a 1.0) com agrupamento (stretching)
+fn generate_x_distribution(config: &config::Config) -> Vec<f64> {
+    let n_longitudinal = config.longitudinal_points;
+    let r = config.stretching_factor; 
+
+    let mid = (n_longitudinal - 1) / 2;
     let num_pts = mid + 1; 
     let mut x_dist = vec![0.0; num_pts];
 
-    // 1. Gera a distribuição de x apenas de 0.0 a 1.0
     if r <= 1.0 {
         // Malha uniforme
         for k in 0..num_pts {
@@ -45,45 +118,18 @@ fn insert_airfoil_geom(config: &config::Config, grid: &mut Array2<Point>) {
         x_dist[0] = 0.0;
         let mut current_dx = a1;
         
-        // Preenche agrupando de x=0.0 até x=0.5
         for k in 1..=n_half {
             x_dist[k] = x_dist[k - 1] + current_dx;
             current_dx *= r; 
         }
         
-        // Espelha agrupando de x=0.5 até x=1.0
         for k in (n_half + 1)..num_pts {
             let mirror_idx = (num_pts - 1) - k;
             x_dist[k] = 1.0 - x_dist[mirror_idx];
         }
     }
 
-    // 2. Mapeia a distribuição gerada para o contorno em anel da Malha O
-    for i in 0..n_longitudinal {
-        // Define a coordenada x descendo e subindo o array x_dist
-        let x = if i <= mid {
-            // Intradorso: começa em i=0 (pega x_dist[mid] = 1.0) 
-            // Vai descendo até i=mid (pega x_dist[0] = 0.0)
-            x_dist[mid - i]
-        } else {
-            // Extradorso: começa em i=mid+1 (pega x_dist[1])
-            // Vai subindo até i=n_long-1 (pega x_dist[mid] = 1.0)
-            x_dist[i - mid]
-        };
-
-        // Calcula a espessura teórica do perfil biconvexo
-        let thickness = 2.0 * t * x * (1.0 - x);
-
-        // Define a coordenada y
-        let y = if i <= mid {
-            -thickness // Intradorso (varredura de i=0 até i=mid)
-        } else {
-            thickness  // Extradorso (varredura de i=mid até o final)
-        };
-
-        // Instanciamos o struct Point e salvamos na matriz computacional
-        grid[[i, 0]] = Point { x, y };
-    }
+    x_dist
 }
 
 fn insert_outter_boundary(config: &config::Config, grid: &mut Array2<Point>) {

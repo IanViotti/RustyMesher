@@ -1,8 +1,11 @@
 #![allow(non_snake_case)]
 
+use crate::geometry::AirfoilType;
+
 #[derive(Clone, Debug)]
 pub struct Config {
     pub meshname: String,
+    pub airfoil_type: AirfoilType,  
     pub r_max: f64,
     pub longitudinal_points: usize,
     pub normal_points: usize,
