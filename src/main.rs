@@ -10,12 +10,11 @@ fn main() {
     let config = config::Config {
         meshname: "biconvex_mesh".to_string(), // Mesh name for output organization
         r_max: 6.5,                   // Circunference radius of the outter mesh boundary
-        longitudinal_points: 93,   // Number of points along the airfoil chord
-        normal_points: 5,          // Number of points in the normal direction from the airfoil surface
+        longitudinal_points: 13,   // Number of points along the airfoil chord
+        normal_points: 10,          // Number of points in the normal direction from the airfoil surface
         t: 0.10,                    // Airfoil thickness parameter
         stretching_factor: 1.2,     // Stretching factor for geometric progression (1.0 for uniform mesh)
-        P: 1.0,                     // Fator de inclinação da malha
-        Q: 1.1,                     // Fator de amortecimento
+        q: 1.15,                     // Fator de amortecimento
         n_max: 5000,                // Maximum number of solver iterations
         conv_criterion: 0.0,        // Convergence criterion for residual
     };

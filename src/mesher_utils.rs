@@ -46,35 +46,73 @@ pub fn save_grid_to_csv(grid: &Array2<Point>, filepath: &str) -> io::Result<()> 
 ///
 /// Used here to solve for all corrections C(i,j) along
 /// a vertical line in the Line Gauss-Seidel method.
-pub fn thomas(a: &[f64], b: &[f64], c: &[f64], d: &[f64]) -> Vec<f64> {
-
+pub fn thomas_algorithm(a: &[f64], b: &[f64], c: &[f64], d: &[f64]) -> Vec<f64> {
     let n = d.len();
-
     let mut c_star = vec![0.0; n];
     let mut d_star = vec![0.0; n];
     let mut x = vec![0.0; n];
 
-    // Forward sweep
+    // Passo 1: Eliminação (Forward sweep) - Construindo L e U implicitamente
     c_star[0] = c[0] / b[0];
     d_star[0] = d[0] / b[0];
 
     for i in 1..n {
-        let denom = b[i] - a[i] * c_star[i - 1];
-
-        if denom.abs() < 1e-14 {
-            panic!("Thomas breakdown at i={}", i);
+        let m = 1.0 / (b[i] - a[i] * c_star[i - 1]);
+        if i < n - 1 {
+            c_star[i] = c[i] * m;
         }
-
-        c_star[i] = if i < n - 1 { c[i] / denom } else { 0.0 };
-        d_star[i] = (d[i] - a[i] * d_star[i - 1]) / denom;
+        d_star[i] = (d[i] - a[i] * d_star[i - 1]) * m;
     }
 
-    // Back substitution
+    // Passo 2: Substituição regressiva (Backward substitution)
     x[n - 1] = d_star[n - 1];
-
     for i in (0..n - 1).rev() {
         x[i] = d_star[i] - c_star[i] * x[i + 1];
     }
 
     x
 }
+
+/// Resolve um sistema tridiagonal cíclico/periódico via Sherman-Morrison
+pub fn periodic_thomas(a: &[f64], b: &[f64], c: &[f64], d: &[f64]) -> Vec<f64> {
+    let n = d.len();
+    
+    // Define o gama (usualmente -b[0] para garantir estabilidade numérica)
+    let gamma = -b[0]; 
+    
+    // Cria a diagonal principal modificada (Matriz T)
+    let mut bb = b.to_vec();
+    bb[0] = b[0] - gamma;
+    bb[n - 1] = b[n - 1] - a[0] * c[n - 1] / gamma;
+
+    // Monta o vetor u (apenas as pontas possuem valores)
+    let mut u = vec![0.0; n];
+    u[0] = gamma;
+    u[n - 1] = a[0]; 
+
+    // O vetor v é modelado implicitamente para economizar alocação:
+    // v = [1.0, 0.0, ..., 0.0, c[n-1]/gamma]
+
+    // Resolução Dupla:
+    // 1. Resolve Ty = d usando a diagonal principal modificada
+    let y: Vec<f64> = thomas_algorithm(a, &bb, c, d);
+    
+    // 2. Resolve Tq = u
+    let q = thomas_algorithm(a, &bb, c, &u);
+
+    // 3. Reconstrução final da solução combinando os resultados
+    let v_n_minus_1 = c[n - 1] / gamma;
+    
+    // Produtos escalares (v dot y) e (v dot q)
+    let v_dot_y = y[0] + v_n_minus_1 * y[n - 1];
+    let v_dot_q = q[0] + v_n_minus_1 * q[n - 1];
+
+    let factor = v_dot_y / (1.0 + v_dot_q);
+
+    let mut x = vec![0.0; n];
+    for i in 0..n {
+        x[i] = y[i] - factor * q[i];
+    }
+
+    x
+}    
