@@ -13,7 +13,7 @@ pub struct Point {
 // Initialize mesh directory
 pub fn init_mesh_directory(config: &config::Config) {
     let meshname = &config.meshname;
-    std::fs::create_dir_all(&format!("job_files/{}/mesh", meshname)).unwrap();
+    std::fs::create_dir_all(&format!("job_files/{}", meshname)).unwrap();
 }
 
 // Create grid
@@ -127,6 +127,7 @@ pub fn periodic_thomas(a: &[f64], b: &[f64], c: &[f64], d: &[f64]) -> Vec<f64> {
 /// Exporta a malha 2D para o formato VTK Legacy (Structured Grid).
 /// Isso permite a visualização nativa no ParaView.
 pub fn export_vtk_structured_grid(grid: &Array2<Point>, filename: &str) -> io::Result<()> {
+
     // Extrai as dimensões reais da malha alocada
     let shape = grid.shape();
     let ni = shape[0];
@@ -156,7 +157,7 @@ pub fn export_vtk_structured_grid(grid: &Array2<Point>, filename: &str) -> io::R
         }
     }
 
-    println!("Malha exportada com sucesso para: {}", filename);
+    println!("Mesh exported to: {}", filename);
 
     Ok(())
 }

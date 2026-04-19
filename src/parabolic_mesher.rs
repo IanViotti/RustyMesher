@@ -1,5 +1,4 @@
 use std::vec;
-
 use crate::config::Config;
 use ndarray::Array2;
 use crate::mesher_utils::Point;
@@ -20,7 +19,6 @@ fn space_march(config: &Config, grid: &mut Array2<Point>) {
     let s_bar = streching_factor(config);
 
     for j in 1..nj{
-        println!("Processing layer j: {}", j);
 
         // Alocate vectors 
         //let mut ref_grid_jp1: Vec<Point> = vec![Point { x: 0.0, y: 0.0 }; ni];
@@ -36,8 +34,6 @@ fn space_march(config: &Config, grid: &mut Array2<Point>) {
 
         // Calculate the local reference grid points for all i at j+1
         let (ref_grid_j, ref_grid_jp1) = local_reference_grid(config, grid, j, &s_bar);
-
-        println!("j: local ref grid {} -{:?}", j, ref_grid_j);
 
         // Loop from 0 to ni-1
         for i in 0..ni {
@@ -92,7 +88,6 @@ fn space_march(config: &Config, grid: &mut Array2<Point>) {
 
             //grid[[i, j]] = ref_grid_jp1[i]; 
 
-            println!("grid @ i:{}, j:{} = {:?}", i, j, grid[[i, j]])
         }
         // pontos sobrepostos para garantir periodicidade
         grid[[ni, j]] = grid[[0, j]];

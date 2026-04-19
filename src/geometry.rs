@@ -49,7 +49,7 @@ fn insert_biconvex_geom(config: &config::Config, grid: &mut Array2<Point>) {
 }
 
 fn insert_naca00xx_geom(config: &config::Config, grid: &mut Array2<Point>) {
-    println!("Generating NACA 00xx (Left-Pointing: Nose at X=1, Tail at X=0)...");
+    println!("Generating NACA 00XX");
 
     let n_longitudinal = config.longitudinal_points;
     let t = config.t;
@@ -133,7 +133,7 @@ fn generate_x_distribution(config: &config::Config) -> Vec<f64> {
 }
 
 fn insert_outter_boundary(config: &config::Config, grid: &mut Array2<Point>) {
-    println!("Inserting outer geometry...");
+    println!("Inserting external boundary...");
 
     let n_longitudinal = config.longitudinal_points;
     

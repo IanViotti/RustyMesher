@@ -12,6 +12,9 @@ pub struct Config {
     pub stretching_factor: f64, // New parameter for geometric stretching
     pub q: f64,
     pub t: f64,
-    pub n_max: usize,
+    pub omega: f64,
+    pub alpha_l: f64,
+    pub alpha_h: f64,
+    pub max_iter: usize,
     pub conv_criterion: f64,
 }
