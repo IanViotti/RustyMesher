@@ -9,24 +9,27 @@ mod parabolic_mesher;
 mod elliptic_mesher;
 use crate::geometry::AirfoilType::Biconvex;
 use crate::geometry::AirfoilType::NACA00XX;
+use crate::config::EllipticEquation::Laplace;
+use crate::config::EllipticEquation::Poisson;
 
 fn main() {
 
     let start = Instant::now();
 
     let config = config::Config {
-        meshname: "naca0012_mesh".to_string(), // Mesh name for output organization
+        meshname: "naca0012_mesh_poisson".to_string(), // Mesh name for output organization
         airfoil_type: NACA00XX,
         r_max: 6.5,                   // Circunference radius of the outter mesh boundary
         longitudinal_points: 93,   // Number of points along the airfoil chord
-        normal_points: 15,          // Number of points in the normal direction from the airfoil surface
+        normal_points: 25,          // Number of points in the normal direction from the airfoil surface
         t: 0.12,                    // Airfoil thickness parameter
         stretching_factor: 1.2,     // Stretching factor for airfoil surface point distribution (1.0 for uniform mesh)
         q: 1.15,                     // Stretching factor for the parabolic mesher (1.0 for no stretching)
         omega: 1.5,                 // Relaxation factor
         alpha_l: 0.5,               // Minimum alpha for multi-frequency acceleration
         alpha_h: 10.0,              // Maximum alpha for multi-frequency acceleration
-        max_iter: 5000,                // Maximum number of solver iterations
+        elliptic_equation: Poisson { ds_wall: 0.005, a_decay: 2.5, b_decay: 1.0 }, // Select the elliptic equation type (Laplace or Poisson)
+        max_iter: 3000,                // Maximum number of solver iterations
         conv_criterion: 1e-6,        // Convergence criterion for residual
     };
 
@@ -57,7 +60,6 @@ fn main() {
     let mesh_filepath = format!("job_files/{}/mesh.vtk", config.meshname);
     _ = mesher_utils::export_vtk_structured_grid(&grid, &mesh_filepath);
 
-    
     println!("Job completed!");
     
     let duration = start.elapsed();

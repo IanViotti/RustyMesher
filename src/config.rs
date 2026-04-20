@@ -2,6 +2,17 @@
 
 use crate::geometry::AirfoilType;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EllipticEquation {
+    Laplace,
+    Poisson {
+        ds_wall: f64, // Espaçamento na parede
+        a_decay: f64, // Decaimento longitudinal
+        b_decay: f64, // Decaimento normal
+    }, 
+}
+
+
 #[derive(Clone, Debug)]
 pub struct Config {
     pub meshname: String,
@@ -15,6 +26,7 @@ pub struct Config {
     pub omega: f64,
     pub alpha_l: f64,
     pub alpha_h: f64,
+    pub elliptic_equation: EllipticEquation, // New parameter to select the elliptic equation type
     pub max_iter: usize,
     pub conv_criterion: f64,
 }
