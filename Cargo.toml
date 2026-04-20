@@ -1,7 +1,9 @@
 [package]
-name = "pde_mesh"
-version = "0.1.0"
+name = "RustyMesher"
+version = "1.0.0"
 edition = "2024"
 
 [dependencies]
 ndarray = "0.17.2"
+serde = { version = "1.0", features = ["derive"] }
+toml = "1.0"

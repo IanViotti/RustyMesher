@@ -1,55 +1,60 @@
-#![allow(non_snake_case)]
-
 use std::time::Instant;
-mod mesher_core;
-mod mesher_utils;
-mod geometry;
-mod config;
-mod parabolic_mesher;
-mod elliptic_mesher;
-use crate::geometry::AirfoilType::Biconvex;
-use crate::geometry::AirfoilType::NACA00XX;
-use crate::config::EllipticEquation::Laplace;
-use crate::config::EllipticEquation::Poisson;
+use std::fs;
+use toml;
+
+// Import internal modules responsible for different aspects of the grid generation process.
+mod mesher_core;      // Core logic for coordinating the mesh generation flow
+mod mesher_utils;     // Utility functions (I/O operations, grid initialization, directory management)
+mod geometry;         // Defines the physical boundaries (e.g., the biconvex airfoil surface)
+mod config;           // Handles parsing and storing the TOML configuration parameters
+mod parabolic_mesher; // Implements parabolic grid generation techniques (marching methods)
+mod elliptic_mesher;  // Implements elliptic grid generation (Poisson/Laplace equations via ADI/AF1)
 
 fn main() {
 
+    // Start a timer to track the total execution time of the mesh generation
     let start = Instant::now();
 
-    let config = config::Config {
-        meshname: "naca0012_mesh_poisson".to_string(), // Mesh name for output organization
-        airfoil_type: NACA00XX,
-        r_max: 6.5,                   // Circunference radius of the outter mesh boundary
-        longitudinal_points: 93,   // Number of points along the airfoil chord
-        normal_points: 25,          // Number of points in the normal direction from the airfoil surface
-        t: 0.12,                    // Airfoil thickness parameter
-        stretching_factor: 1.2,     // Stretching factor for airfoil surface point distribution (1.0 for uniform mesh)
-        q: 1.15,                     // Stretching factor for the parabolic mesher (1.0 for no stretching)
-        omega: 1.5,                 // Relaxation factor
-        alpha_l: 0.5,               // Minimum alpha for multi-frequency acceleration
-        alpha_h: 10.0,              // Maximum alpha for multi-frequency acceleration
-        elliptic_equation: Poisson { ds_wall: 0.005, a_decay: 2.5, b_decay: 1.0 }, // Select the elliptic equation type (Laplace or Poisson)
-        max_iter: 3000,                // Maximum number of solver iterations
-        conv_criterion: 1e-6,        // Convergence criterion for residual
-    };
+    // 1. Read the TOML configuration file
+    // This file contains user-defined parameters such as grid dimensions (longitudinal/normal points),
+    // clustering/stretching factors, and the chosen numerical scheme (elliptic or parabolic).
+    let config_content = fs::read_to_string("job_config.toml")
+        .expect("It was not possible to read the job_config.toml file. Please make sure it exists and is in the correct path.\n");
 
+    // 2. Deserialize using the 'toml' crate
+    // Maps the raw string into a strongly-typed `config::Config` struct.
+    let config: config::Config = toml::from_str(&config_content)
+        .expect("Error parsing the job_config.toml file. Please check the format and values.\n");
+
+    // Display job startup information
     println!("\n
             -----------------------------\n
             Starting mesh generation job: {}\n
             -----------------------------\n", config.meshname);
 
+    println!("Configuration loaded: \n{:#?}\n", config);
+
     // Create necessary directories for output
+    // Ensures that the destination folders for CSV and VTK files exist (e.g., job_files/meshname/)
     mesher_utils::init_mesh_directory(&config);
 
-    // Initialize griid
+    // Initialize grid
+    // Allocates the initial data structure for the computational domain (xi, eta)
+    // based on the number of points in the longitudinal and normal directions.
     let mut grid = mesher_utils::create_grid(config.longitudinal_points, config.normal_points);
 
     // Insert geometry into grid
+    // Applies the inner boundary conditions, which usually defines the 
+    // physical shape of the biconvex airfoil at the lowest 'eta' level.
     geometry::insert_geoemtry(&config, &mut grid);
 
-    // create mesh
+    // Create mesh
+    // Dispatches the grid to the selected mathematical solver (elliptic or parabolic)
+    // to compute the internal grid points coordinates in the physical space.
     mesher_core::create_mesh(&config, &mut grid);
 
+    // Define path and save the final computed grid coordinates to a CSV file.
+    // Useful for simple tabular data inspection and custom post-processing scripts.
     let mesh_filepath = format!("job_files/{}/mesh.csv", config.meshname);
     match mesher_utils::save_grid_to_csv(&grid, &mesh_filepath) {
         Ok(_) => println!("File saved as .csv..."),
@@ -57,12 +62,15 @@ fn main() {
     }
 
     // Export to VTK for visualization
+    // Saves the structured grid in a VTK format, which is the standard format for robust 
+    // CFD visualization tools like ParaView or VisIt.
     let mesh_filepath = format!("job_files/{}/mesh.vtk", config.meshname);
     _ = mesher_utils::export_vtk_structured_grid(&grid, &mesh_filepath);
 
+    // Print final completion message and elapsed execution time.
     println!("Job completed!");
     
     let duration = start.elapsed();
-    println!("Tempo total da geração: {:?} \n", duration);
+    println!("Total running time: {:?} \n", duration);
 
 }

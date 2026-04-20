@@ -1,0 +1,75 @@
+# ===================================================
+# This file is used to configure the RustyMesher job.
+# ===================================================
+
+# jobname (used for directory and files creation)
+# This will be the name of the output folder inside 'job_files/'
+meshname = "naca0012_mesh_poisson"
+
+# ===================================================
+# Geometry settings 
+# ===================================================
+# Defines the inner boundary shape. Options typically include "Biconvex" or "NACA00XX"
+airfoil_type = "NACA00XX"  
+
+# Maximum airfoil thickness-to-chord ratio (e.g., 0.12 means 12% thickness, like NACA 0012)
+t = 0.12                   
+
+# Radius of the external computational boundary. 
+# Defines how far the far-field is placed relative to the airfoil (typically in chord lengths).
+r_max = 6.5                
+
+# ===================================================
+# Mesh parameters (Topology: O-grid)
+# ===================================================
+# Number of nodes wrapped around the airfoil surface (longitudinal / xi / ξ direction).
+longitudinal_points = 93   
+
+# Number of nodes extending radially from the airfoil to the outer boundary (normal / eta / η direction).
+normal_points = 25         
+
+# Controls the clustering of points along the airfoil surface.
+# = 1.0: Uniform distribution.
+# > 1.0: Clusters points near the Leading Edge (LE) and Trailing Edge (TE) to resolve high gradients.
+# < 1.0: Clusters points in the middle of the chord.
+stretching_factor = 1.2    
+
+# Geometric progression factor used specifically in the parabolic meshing step 
+# to cluster radial lines closer to the airfoil wall (viscous layer resolution).
+q = 1.15                   
+
+# ===================================================
+# Elliptical smoother settings (Solver configurations)
+# ===================================================
+# Relaxation factor for the iterative solver (like SOR). 
+# Values between 1.0 and 2.0 accelerate convergence (over-relaxation).
+omega = 1.5                
+
+# Lower bound of the acceleration parameter sequence used in the Approximate Factorization (AF1) scheme.
+alpha_l = 0.5              
+
+# Upper bound of the acceleration parameter sequence for the AF1 scheme.
+alpha_h = 10.0             
+
+# Maximum number of iterations allowed for the elliptic solver to prevent infinite loops.
+max_iter = 3000            
+
+# Convergence threshold. The solver stops when the maximum residual drops below this value.
+conv_criterion = 1e-6      
+
+# ===================================================
+# Elliptic equation selection (Poisson grid control)
+# ===================================================
+# These parameters are used when solving the Inhomogeneous Poisson equation 
+# (based on Sorenson/Steger methods) to enforce orthogonality and spacing at the wall.
+[elliptic_equation.Poisson]
+# Target grid spacing (Δs) perfectly normal to the airfoil surface (inner boundary).
+ds_wall = 0.005            
+
+# Decay factor 'a': dictates how rapidly the longitudinal grid control terms 
+# dissipate as you move away from the solid boundaries into the field.
+a_decay = 2.5              
+
+# Decay factor 'b': dictates how rapidly the normal grid control terms 
+# (wall attraction) dissipate towards the outer boundary.
+b_decay = 1.0
